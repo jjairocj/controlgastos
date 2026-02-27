@@ -148,7 +148,7 @@ export function EditDebtModal({
                         <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="CREDIT_CARD">Tarjeta de Crédito</SelectItem>
+                        <SelectItem value="CREDIT_CARD">Compra con Tarjeta (Cuotas)</SelectItem>
                         <SelectItem value="PERSONAL_LOAN">Préstamo Personal</SelectItem>
                         <SelectItem value="MORTGAGE">Hipotecario</SelectItem>
                         <SelectItem value="OTHER">Otro</SelectItem>

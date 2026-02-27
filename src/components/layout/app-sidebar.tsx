@@ -109,9 +109,18 @@ export function AppSidebar({ accounts = [] }: AppSidebarProps) {
                         {acc.currency}
                       </span>
                     </div>
-                    <span className={`text-sm font-bold tracking-tight ${acc.balance < 0 ? 'text-red-400' : 'text-zinc-100'}`}>
-                      {acc.currency === 'COP' ? fmtCOP.format(acc.balance) : fmtUSD.format(acc.balance)}
-                    </span>
+                    {acc.type === 'CREDIT_CARD' && acc.creditLimit ? (
+                      <div className="flex justify-between items-end mt-1">
+                        <span className="text-[10px] text-zinc-500 font-medium tracking-tight">Cupo Disponible:</span>
+                        <span className="text-sm font-bold tracking-tight text-zinc-100">
+                          {acc.currency === 'COP' ? fmtCOP.format(acc.creditLimit + acc.balance) : fmtUSD.format(acc.creditLimit + acc.balance)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className={`text-sm font-bold tracking-tight ${acc.balance < 0 ? 'text-red-400' : 'text-zinc-100'} mt-1`}>
+                        {acc.currency === 'COP' ? fmtCOP.format(acc.balance) : fmtUSD.format(acc.balance)}
+                      </span>
+                    )}
                   </div>
                 </EditAccountModal>
               ))}

@@ -110,9 +110,8 @@ export default async function DeudasPage() {
       <h2 className="text-xl font-bold mt-8 mb-4">Tus Tarjetas de Crédito (Saldómetros)</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {accounts.filter(a => a.type === "CREDIT_CARD").map(acc => {
-          const usedCredit = debtStats
-            .filter(d => (d as any).accountId === acc.id)
-            .reduce((sum, d) => sum + (d.sumTotal - d.sumPaid), 0);
+          // El 'balance' en Prisma es el saldo gastado real (suele ser negativo)
+          const usedCredit = Math.abs(acc.balance || 0);
           
           const limit = acc.creditLimit || 0;
           const available = limit - usedCredit;

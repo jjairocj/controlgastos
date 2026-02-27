@@ -101,7 +101,7 @@ export function AddDebtModal({ accounts = [] }: { accounts: any[] }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isLoan ? <Landmark className="w-5 h-5 text-primary" /> : <CreditCard className="w-5 h-5 text-primary" />}
-            Registrar {isLoan ? "Obligación / Préstamo" : "Tarjeta / Cupo"}
+            Registrar {isLoan ? "Obligación / Préstamo" : "Compra con Tarjeta"}
           </DialogTitle>
           <DialogDescription>
             {isLoan 
@@ -124,7 +124,7 @@ export function AddDebtModal({ accounts = [] }: { accounts: any[] }) {
                     <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="CREDIT_CARD">Tarjeta de Crédito</SelectItem>
+                    <SelectItem value="CREDIT_CARD">Compra con Tarjeta (Cuotas)</SelectItem>
                     <SelectItem value="PERSONAL_LOAN">Préstamo Personal</SelectItem>
                     <SelectItem value="MORTGAGE">Hipotecario / Vivienda</SelectItem>
                     <SelectItem value="OTHER">Otro Financiamiento</SelectItem>
