@@ -17,6 +17,10 @@ interface EditAccountModalProps {
     creditLimit?: number | null;
     currency: string;
     balance: number;
+    _count?: {
+      transactions: number;
+      debts: number;
+    };
   };
   children?: React.ReactNode;
 }
@@ -147,9 +151,15 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
           )}
 
           <div className="flex justify-between items-center pt-2">
-            <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isSubmitting}>
-              Eliminar
-            </Button>
+            <div>
+              {(!account._count || (account._count.transactions === 0 && account._count.debts === 0)) ? (
+                <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isSubmitting}>
+                  Eliminar
+                </Button>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/50">Bloqueada (Tiene movimientos)</span>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting}>
                 Cancelar

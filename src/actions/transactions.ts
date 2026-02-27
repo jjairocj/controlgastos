@@ -96,6 +96,11 @@ export async function getCategories() {
 
 export async function getAccounts() {
     return await db.account.findMany({
+        include: {
+            _count: {
+                select: { transactions: true, debts: true }
+            }
+        },
         orderBy: { name: 'asc' }
     });
 }

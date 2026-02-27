@@ -47,7 +47,15 @@ export default async function DeudasPage() {
   });
 
   const accounts = await db.account.findMany({
-    select: { id: true, name: true, currency: true, type: true, creditLimit: true, balance: true },
+    select: { 
+      id: true, 
+      name: true, 
+      currency: true, 
+      type: true, 
+      creditLimit: true, 
+      balance: true,
+      _count: { select: { transactions: true, debts: true } }
+    },
     orderBy: { name: "asc" }
   });
 
@@ -184,7 +192,9 @@ export default async function DeudasPage() {
                         currency={debt.currency}
                         type={debt.type}
                       />
-                      <DeleteDebtButton debtId={debt.id} debtName={debt.name} />
+                      {debt.cuotasPagadas === 0 && (
+                        <DeleteDebtButton debtId={debt.id} debtName={debt.name} />
+                      )}
                     </div>
                   </div>
                   <CardDescription className="mt-1 flex flex-col gap-0.5">
