@@ -18,7 +18,6 @@ interface PayInstallmentModalProps {
   accounts: { id: string; name: string; currency: string }[];
   categoryId: string;
   suggestedPaymentAmount?: number;
-  children?: React.ReactNode;
 }
 
 export function PayInstallmentModal({ 
@@ -29,8 +28,7 @@ export function PayInstallmentModal({
   dueDate, 
   accounts, 
   categoryId, 
-  suggestedPaymentAmount,
-  children 
+  suggestedPaymentAmount
 }: PayInstallmentModalProps) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(expectedAmount.toString());
@@ -75,7 +73,9 @@ export function PayInstallmentModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {children || <Button variant="outline" size="sm">Pagar</Button>}
+        <button className="w-full mt-2 bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-sm font-medium py-2 rounded-md ring-1 ring-inset ring-primary/20">
+          Registrar Pago
+        </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

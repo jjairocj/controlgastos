@@ -6,6 +6,7 @@ import { AddDebtModal } from "@/components/debts/add-debt-modal";
 import { DeleteDebtButton } from "@/components/debts/delete-debt-button";
 import { EditDebtModal } from "@/components/debts/edit-debt-modal";
 import { EditAccountModal } from "@/components/accounts/edit-account-modal";
+import { PayAccountModal } from "@/components/accounts/pay-account-modal";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/db";
@@ -153,6 +154,16 @@ export default async function DeudasPage() {
                     </span>
                   </div>
                 </div>
+                
+                <div className="pt-2">
+                  <PayAccountModal 
+                    creditCardId={acc.id}
+                    creditCardName={acc.name}
+                    creditCardCurrency={acc.currency}
+                    currentBalance={acc.balance}
+                    accounts={accounts as any}
+                  />
+                </div>
               </CardContent>
             </Card>
           );
@@ -257,11 +268,7 @@ export default async function DeudasPage() {
                     dueDate={debt.nextInstallment.dueDate}
                     accounts={accounts as any}
                     categoryId={debtCategory.id}
-                  >
-                    <button className="w-full mt-2 bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-sm font-medium py-2 rounded-md ring-1 ring-inset ring-primary/20">
-                      Registrar Pago
-                    </button>
-                  </PayInstallmentModal>
+                  />
                 </div>
               )}
             </CardContent>

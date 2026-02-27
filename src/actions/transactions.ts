@@ -80,6 +80,7 @@ export async function createTransaction(data: CreateTransactionInput) {
         revalidatePath("/");
         revalidatePath("/transacciones");
         revalidatePath("/checklist");
+        revalidatePath("/deudas");
 
         return { success: true, transaction: result };
     } catch (error) {
@@ -155,6 +156,7 @@ export async function payPendingTransaction(data: PayPendingInput) {
         revalidatePath("/");
         revalidatePath("/transacciones");
         revalidatePath("/checklist");
+        revalidatePath("/deudas");
 
         return { success: true, transaction: result };
     } catch (error: any) {
