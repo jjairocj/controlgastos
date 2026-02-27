@@ -19,9 +19,27 @@ export default async function DashboardSummary({ period }: DashboardSummaryProps
     dateFilter = { gte: new Date(year, month, 1), lt: new Date(year, month + 1, 1) };
   }
 
-  // Ingreso Base de Configuración
+  // TRM Dinámica Indicativa (Para visualización)
+  let currentTRM = 4000;
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const data = await res.json();
+      currentTRM = data.rates.COP || 4000;
+    }
+  } catch (error) {
+    console.error("No se pudo obtener la TRM", error);
+  }
+
+  // Ingreso Base de Configuración (Asumimos que el input en web es COP directo)
   const config = await db.userSettings.findFirst();
-  const incomeCopBase = (config?.baseIncome || 6000) * 4000; // Asumiendo TRM 4000 temporal para display si no hay ExchangeRate del dia
+  // Corregimos la inflación de 24M: el baseIncome debería tratarse como COP directo, 
+  // O en su defecto, si es 6000 USD, lo multiplicamos por la TRM real indicativa.
+  // Ajustaremos a que el baseIncome guardado es directamente en COP (Ej. 6000000) o aplicamos lógica.
+  // En versiones previas baseIncome estaba en 6000 y se multiplicaba x4000 = 24M.
+  // Vamos a asumir que si el baseIncome es menor a 100,000, está en USD y usamos la TRM real indicativa.
+  const rawBase = config?.baseIncome || 6000000; // Default 6M COP si no hay config
+  const incomeCopBase = rawBase < 100000 ? rawBase * currentTRM : rawBase;
   
   // Total Ingresos mes (Config + Extras Q1/Q2)
   const txIngresos = await db.transaction.aggregate({
@@ -84,7 +102,9 @@ export default async function DashboardSummary({ period }: DashboardSummaryProps
         </div>
         <div className="p-6 pt-0">
           <div className="text-2xl font-bold">{fmt.format(totalIncome)}</div>
-          <p className="text-[10px] text-muted-foreground mt-1">Estimado en COP (TRM x4000)</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {rawBase < 100000 ? `Base multiplicada por TRM indicativa ($${currentTRM.toFixed(0)})` : "Basado en tus ajustes"}
+          </p>
         </div>
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">

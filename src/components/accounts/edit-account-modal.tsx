@@ -28,10 +28,12 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
   const [creditLimit, setCreditLimit] = useState(account.creditLimit?.toString() || "");
   const [balance, setBalance] = useState(account.balance.toString());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage("");
     
     try {
       const result = await updateAccount({
@@ -45,11 +47,11 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
       if (result.success) {
         setOpen(false);
       } else {
-        alert(result.error);
+        setErrorMessage(result.error || "Ocurrió un error.");
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un error al actualizar la cuenta.");
+      setErrorMessage("Hubo un error al actualizar la cuenta.");
     } finally {
       setIsSubmitting(false);
     }
@@ -61,20 +63,22 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
     }
     
     setIsSubmitting(true);
+    setErrorMessage("");
     try {
       const result = await deleteAccount(account.id);
       if (result.success) {
         setOpen(false);
       } else {
-        alert(result.error);
+        setErrorMessage(result.error || "No se pudo eliminar.");
       }
     } catch (error) {
       console.error(error);
-      alert("Hubo un error al eliminar la cuenta.");
+      setErrorMessage("Hubo un error al intentar eliminar la cuenta.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -133,6 +137,12 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
                   required={type === "CREDIT_CARD"} 
                 />
                 <p className="text-[10px] text-muted-foreground italic">Este valor es crucial para calcular tu cupo disponible real.</p>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
+              {errorMessage}
             </div>
           )}
 
