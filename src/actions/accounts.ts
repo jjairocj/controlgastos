@@ -65,3 +65,40 @@ export async function createAccount(data: CreateAccountInput) {
         return { success: false, error: "No se pudo crear la cuenta." };
     }
 }
+
+export async function deleteAccount(id: string) {
+    try {
+        const acc = await db.account.findUnique({
+            where: { id },
+            include: {
+                _count: {
+                    select: { transactions: true, debts: true }
+                }
+            }
+        });
+
+        if (!acc) {
+            return { success: false, error: "La cuenta no existe." };
+        }
+
+        if (acc._count.transactions > 0 || acc._count.debts > 0) {
+            return {
+                success: false,
+                error: `No se puede eliminar la cuenta porque tiene movimientos (${acc._count.transactions} transacciones / ${acc._count.debts} deudas) asociados.`
+            };
+        }
+
+        await db.account.delete({
+            where: { id },
+        });
+
+        revalidatePath("/deudas");
+        revalidatePath("/");
+        revalidatePath("/transacciones");
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error al eliminar cuenta:", error);
+        return { success: false, error: "No se pudo eliminar la cuenta." };
+    }
+}

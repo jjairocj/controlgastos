@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateAccount } from "@/actions/accounts";
+import { updateAccount, deleteAccount } from "@/actions/accounts";
 import { Settings2, CreditCard, Wallet } from "lucide-react";
 
 interface EditAccountModalProps {
@@ -50,6 +50,27 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
     } catch (error) {
       console.error(error);
       alert("Hubo un error al actualizar la cuenta.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta cuenta? Esta acción no se puede deshacer y no funcionará si la cuenta tiene movimientos o deudas asociadas.")) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const result = await deleteAccount(account.id);
+      if (result.success) {
+        setOpen(false);
+      } else {
+        alert(result.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Hubo un error al eliminar la cuenta.");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,13 +136,18 @@ export function EditAccountModal({ account, children }: EditAccountModalProps) {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting}>
-              Cancelar
+          <div className="flex justify-between items-center pt-2">
+            <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isSubmitting}>
+              Eliminar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Guardando..." : "Guardar Cambios"}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

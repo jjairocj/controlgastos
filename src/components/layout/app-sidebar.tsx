@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import type { Account } from "@prisma/client";
 import { AddAccountModal } from "@/components/accounts/add-account-modal";
+import { EditAccountModal } from "@/components/accounts/edit-account-modal";
 
 const items = [
   {
@@ -98,19 +99,21 @@ export function AppSidebar({ accounts = [] }: AppSidebarProps) {
           <SidebarGroupContent>
             <div className="px-4 space-y-3">
               {accounts.map(acc => (
-                <div key={acc.id} className="flex flex-col gap-0.5 group cursor-default">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                      {acc.name}
-                    </span>
-                    <span className="text-[10px] bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded-full text-zinc-500">
-                      {acc.currency}
+                <EditAccountModal key={acc.id} account={acc}>
+                  <div className="flex flex-col gap-0.5 group cursor-pointer hover:bg-muted/50 p-1.5 -mx-1.5 rounded-md transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                        {acc.name}
+                      </span>
+                      <span className="text-[10px] bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded-full text-zinc-500">
+                        {acc.currency}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-bold tracking-tight ${acc.balance < 0 ? 'text-red-400' : 'text-zinc-100'}`}>
+                      {acc.currency === 'COP' ? fmtCOP.format(acc.balance) : fmtUSD.format(acc.balance)}
                     </span>
                   </div>
-                  <span className={`text-sm font-bold tracking-tight ${acc.balance < 0 ? 'text-red-400' : 'text-zinc-100'}`}>
-                    {acc.currency === 'COP' ? fmtCOP.format(acc.balance) : fmtUSD.format(acc.balance)}
-                  </span>
-                </div>
+                </EditAccountModal>
               ))}
             </div>
           </SidebarGroupContent>
