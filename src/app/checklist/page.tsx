@@ -169,16 +169,12 @@ export default async function ChecklistPage() {
                     <PayInstallmentModal
                         installmentId={inst.id}
                         debtName={inst.debt.name}
-                        currency={inst.debt.currency}
+                        currency={inst.debt.currency as any}
                         expectedAmount={inst.amount}
                         dueDate={inst.dueDate}
                         accounts={accounts}
                         categoryId={debtCategory.id}
-                    >
-                        <button className="w-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 py-1.5 rounded font-medium transition-colors">
-                        Pagar Extracto / Cuota
-                        </button>
-                    </PayInstallmentModal>
+                    />
                 </div>
               </div>
             ))}

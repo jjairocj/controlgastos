@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, Home, LayoutList, LineChart, Wallet } from "lucide-react";
+import { CreditCard, Home, LayoutList, LineChart, Wallet, ShieldCheck, BrainCircuit, PieChart } from "lucide-react";
 
 import {
   Sidebar,
@@ -24,6 +24,11 @@ const items = [
     title: "Inicio",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Analista IA",
+    url: "/analista",
+    icon: BrainCircuit,
   },
   {
     title: "Transacciones",
@@ -80,8 +85,8 @@ export function AppSidebar({ accounts = [] }: AppSidebarProps) {
                       }`}
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                        <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                        <span>{item.title}</span>
+                        <item.icon className={`h-5 w-5 ${isActive ? "text-primary text-emerald-500" : "text-muted-foreground"}`} />
+                        <span className={item.title === "Analista IA" ? "text-emerald-500 font-bold" : ""}>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
