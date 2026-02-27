@@ -47,7 +47,7 @@ export default async function DeudasPage() {
   });
 
   const accounts = await db.account.findMany({
-    select: { id: true, name: true, currency: true, type: true, creditLimit: true },
+    select: { id: true, name: true, currency: true, type: true, creditLimit: true, balance: true },
     orderBy: { name: "asc" }
   });
 

@@ -5,11 +5,12 @@ import PendingWidget from "@/components/dashboard/pending-widget";
 import { Suspense } from "react";
 
 interface HomeProps {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
-export default function Home({ searchParams }: HomeProps) {
-  const period = searchParams.period as "Q1" | "Q2" | undefined;
+export default async function Home({ searchParams }: HomeProps) {
+  const { period } = await searchParams;
+  const filteredPeriod = period as "Q1" | "Q2" | undefined;
   return (
     <div className="space-y-6">
       <div>
@@ -20,7 +21,7 @@ export default function Home({ searchParams }: HomeProps) {
       </div>
       
       <Suspense fallback={<div className="h-32 rounded-xl border bg-muted/20 animate-pulse w-full"></div>}>
-        <DashboardSummary period={period} />
+        <DashboardSummary period={filteredPeriod} />
       </Suspense>
 
       <Suspense fallback={<div className="h-32 rounded-xl border bg-muted/20 animate-pulse w-full"></div>}>
@@ -34,7 +35,7 @@ export default function Home({ searchParams }: HomeProps) {
             <TimeFilter />
           </Suspense>
         </div>
-        <TransactionTable searchParams={{ period }} />
+        <TransactionTable searchParams={{ period: filteredPeriod }} />
       </div>
     </div>
   );
