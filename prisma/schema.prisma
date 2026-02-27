@@ -1,0 +1,223 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  USD
+  COP
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+}
+
+enum RecurrencePeriod {
+  MONTHLY
+  BIWEEKLY
+  WEEKLY
+}
+
+enum CategoryType {
+  FIXED
+  VARIABLE
+}
+
+enum DebtType {
+  CREDIT_CARD
+  PERSONAL_LOAN
+  MORTGAGE
+  OTHER
+}
+
+enum AccountType {
+  SAVINGS
+  CREDIT_CARD
+}
+
+model Category {
+  id              String          @id @default(cuid())
+  name            String
+  type            CategoryType
+  transactions    Transaction[]
+  recurringItems  RecurringItem[]
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  name        String      // e.g., "NU", "BBVA", "Cuenta Dólares USA"
+  currency    Currency    @default(COP)
+  balance     Float       @default(0)
+  type        AccountType @default(SAVINGS)
+  creditLimit Float?      // Solo para tarjetas de crédito
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions   Transaction[]
+  debts          Debt[]          @relation("AccountDebts")
+  relSource      Transfer[]      @relation("SourceAccount")
+  relDest        Transfer[]      @relation("DestAccount")
+  recurringItems RecurringItem[]
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  amount      Float
+  currency    Currency
+  type        TransactionType
+  status      TransactionStatus @default(PAID) // Por defecto PAID para retrocompatibilidad
+  date        DateTime        @default(now())
+  description String
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  accountId  String?  // Relación con banco de origen
+  account    Account? @relation(fields: [accountId], references: [id])
+
+  // Trazabilidad Multi-moneda (NUEVO)
+  exchangeRate   Float?   // TRM específica para este movimiento
+  originalAmount Float?   // Valor en la moneda original (si hubo conversión)
+  originalCurrency Currency?
+
+  // Transferencias internas
+  transferId String?
+  transfer   Transfer? @relation(fields: [transferId], references: [id])
+
+  // Fecha opcional de vencimiento si es una factura
+  dueDate    DateTime? 
+
+  // Motor de proyecciones (Relación con plantillas recurrentes)
+  isRecurring      Boolean           @default(false)
+  recurringItemId  String?
+  recurringItem    RecurringItem?    @relation(fields: [recurringItemId], references: [id])
+
+  // Relación con Cuotas (Opcional)
+  installmentId String?      @unique
+  installment   Installment? @relation(fields: [installmentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Debt {
+  id           String   @id @default(cuid())
+  name         String
+  type         DebtType
+  
+  // Relación con Tarjeta (Opcional, para agrupar compras)
+  accountId    String?
+  account      Account? @relation("AccountDebts", fields: [accountId], references: [id])
+
+  // Dato Original
+  disbursementAmount Float? // Monto original que prestó el banco
+  disbursementDate   DateTime? // Fecha en que se desembolsó
+
+  // Dato Proyectado
+  totalAmount  Float    // Monto Total a pagar (Capital + Intereses proyectados en las n cuotas)
+  
+  // Dato Real Actual (Para comparar vs Proyectado)
+  bankCurrentRemaining Float? // Lo que el banco dice hoy que se debe (Capital restante real)
+
+  currency     Currency
+  
+  // Tasas
+  interestRate Float? // Tasa Efectiva Mensual o Nominal
+  effectiveAnnualRate Float? // Tasa Efectiva Anual (TEA) - Estándar Colombiano
+
+  installments Installment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Installment {
+  id     String @id @default(cuid())
+  debtId String
+  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  installmentNum    Int // Número de cuota (ej. 1 de 12)
+  totalInstallments Int // Total de cuotas (ej. 12)
+  amount            Float // Valor de esta cuota
+  dueDate           DateTime // Fecha de vencimiento
+
+  isPaid Boolean @default(false)
+
+  // Relación 1:1 con la transacción real (si ya se pagó)
+  transaction Transaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  usdToCop  Float
+  createdAt DateTime @default(now())
+}
+
+model Transfer {
+  id              String   @id @default(cuid())
+  fromAccountId   String
+  fromAccount     Account  @relation("SourceAccount", fields: [fromAccountId], references: [id])
+  toAccountId     String
+  toAccount       Account  @relation("DestAccount", fields: [toAccountId], references: [id])
+  
+  amountSource    Float    // Cantidad en moneda origen (ej. 1739.80 USD)
+  amountDest      Float    // Cantidad en moneda destino (ej. 6.5M COP)
+  exchangeRate    Float    // TRM pactada/real de la operación
+  
+  description     String?
+  date            DateTime @default(now())
+  
+  transactions    Transaction[]
+  
+  createdAt       DateTime @default(now())
+}
+
+model UserSettings {
+  id         String   @id @default(cuid()) // Solo habrá un registro
+  baseIncome Float    // Ej. 6000
+  currency   Currency @default(USD)
+  updatedAt  DateTime @updatedAt
+}
+
+// NUEVO: Plantillas para ingresos y gastos recurrentes (Suscripciones, Salario, Facturas)
+model RecurringItem {
+  id              String           @id @default(cuid())
+  name            String
+  type            TransactionType
+  defaultAmount   Float
+  currency        Currency         @default(COP)
+  period          RecurrencePeriod
+  
+  // Para auto-sugerir o clasificar
+  categoryId      String
+  category        Category         @relation(fields: [categoryId], references: [id])
+  
+  // Cuenta por defecto si se sabe desde donde se paga siempre
+  defaultAccountId String?
+  defaultAccount   Account?        @relation(fields: [defaultAccountId], references: [id])
+
+  active          Boolean          @default(true)
+  
+  // Relación a las facturas/transacciones generadas por esta plantilla
+  generatedTransactions Transaction[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
