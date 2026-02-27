@@ -16,6 +16,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import type { Account } from "@prisma/client";
+import { AddAccountModal } from "@/components/accounts/add-account-modal";
 
 const items = [
   {
@@ -90,8 +91,9 @@ export function AppSidebar({ accounts = [] }: AppSidebarProps) {
         </SidebarGroup>
 
         <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-[10px] tracking-widest text-muted-foreground uppercase px-4 mb-2">
-            Mis Cuentas
+          <SidebarGroupLabel className="text-[10px] tracking-widest text-muted-foreground uppercase px-4 mb-2 flex justify-between items-center w-full">
+            <span>Mis Cuentas</span>
+            <AddAccountModal />
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <div className="px-4 space-y-3">
