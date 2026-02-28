@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:seed": "tsx prisma/seed.ts",
-    "backup": "node scripts/backup.js"
+    "backup": "node scripts/backup.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
