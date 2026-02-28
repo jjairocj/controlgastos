@@ -8,13 +8,25 @@ async function main() {
     await prisma.transaction.deleteMany();
     await prisma.installment.deleteMany();
     await prisma.debt.deleteMany();
+    await prisma.transfer.deleteMany();
+    await prisma.recurringItem.deleteMany();
+    await prisma.userSettings.deleteMany();
     await prisma.category.deleteMany();
     await prisma.account.deleteMany();
 
     // 2. Crear Categorías
     const catTransporte = await prisma.category.create({ data: { name: "Transporte", type: CategoryType.VARIABLE } });
     const catAlimentacion = await prisma.category.create({ data: { name: "Alimentación", type: CategoryType.VARIABLE } });
-    const catOcio = await prisma.category.create({ data: { name: "Ocio", type: CategoryType.VARIABLE } });
+    const catSalud = await prisma.category.create({ data: { name: "Salud", type: CategoryType.VARIABLE } });
+    const catEducacion = await prisma.category.create({ data: { name: "Educación", type: CategoryType.FIXED } });
+    const catHobbies = await prisma.category.create({ data: { name: "Hobbies y Entretenimiento", type: CategoryType.VARIABLE } });
+    const catRopa = await prisma.category.create({ data: { name: "Ropa y Calzado", type: CategoryType.VARIABLE } });
+    const catServicios = await prisma.category.create({ data: { name: "Servicios Públicos", type: CategoryType.FIXED } });
+    const catSeguros = await prisma.category.create({ data: { name: "Seguros", type: CategoryType.FIXED } });
+    const catSuscripciones = await prisma.category.create({ data: { name: "Suscripciones", type: CategoryType.FIXED } });
+    const catMascotas = await prisma.category.create({ data: { name: "Mascotas", type: CategoryType.VARIABLE } });
+    const catCuidado = await prisma.category.create({ data: { name: "Cuidado Personal", type: CategoryType.VARIABLE } });
+    const catRegalos = await prisma.category.create({ data: { name: "Regalos / Donaciones", type: CategoryType.VARIABLE } });
     const catVivienda = await prisma.category.create({ data: { name: "Vivienda", type: CategoryType.FIXED } });
 
     // 3. Crear Cuentas

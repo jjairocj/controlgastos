@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, ShieldCheck, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, ShieldCheck, Wallet, Flame, Target } from "lucide-react";
 import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 export default async function AnalistaPage() {
@@ -25,21 +25,50 @@ export default async function AnalistaPage() {
     }
   });
 
-  // 2.1 Pasivos (Suma del capital restante calculado)
-  const totalLiabilities = debts.reduce((acc, curr) => {
-    const paid = curr.installments.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0);
-    const total = curr.installments.reduce((sum, i) => sum + i.amount, 0);
-    return acc + (total - paid);
-  }, 0);
+  let ccTotalDebt = 0;
+  let loanTotalDebt = 0;
+  let highestInterestDebt: any = null;
+  let highestInterestRate = 0;
 
-  // 2.2 Compromisos de deudas ESTE MES
-  const monthlyDebtPayments = debts.reduce((acc, curr) => {
+  // 2.1 Pasivos y Clasificación MACRO
+  const debtsWithBalance = debts.map(debt => {
+    const paid = debt.installments.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0);
+    const total = debt.installments.reduce((sum, i) => sum + i.amount, 0);
+    const remaining = total - paid;
+    
+    // Solo préstamos normales e independientes (Las TC se calculan por saldo de cuenta abajo)
+    if (debt.type !== 'CREDIT_CARD') {
+        loanTotalDebt += remaining;
+    }
+
+    if (remaining > 0 && debt.interestRate) {
+        if (debt.interestRate > highestInterestRate) {
+            highestInterestRate = debt.interestRate;
+            highestInterestDebt = { ...debt, remaining };
+        }
+    }
+    return { ...debt, remaining };
+  });
+
+  // Consumo Real de Tarjetas de Crédito desde los Saldos de las Cuentas 
+  // (El balance representa el crédito usado, puede estar guardado en positivo o negativo según el flujo)
+  accounts.forEach(acc => {
+    if (acc.type === 'CREDIT_CARD') {
+      ccTotalDebt += Math.abs(acc.balance || 0);
+    }
+  });
+
+  const totalLiabilities = ccTotalDebt + loanTotalDebt;
+
+  // 2.2 Compromisos Mensuales (EXCLUYENDO TC para el verdadero Burn Rate Operativo)
+  const monthlyLoanDebtPayments = debts.reduce((acc, curr) => {
+    if (curr.type === 'CREDIT_CARD') return acc; // No considerar como gasto mensual natural, es un blanco a aniquilar
     const nextInstallments = curr.installments.filter(i => !i.isPaid && isWithinInterval(i.dueDate, { start: startMonth, end: endMonth }));
     const sumNext = nextInstallments.reduce((sum, i) => sum + i.amount, 0);
-    return acc + sumNext; // Asume que solo hay 1 cuota por mes por deuda
+    return acc + sumNext;
   }, 0);
 
-  // 3. Obtener Transacciones (Para estimar Cashflow libre y Gastos de este mes)
+  // 3. Obtener Transacciones (Cashflow libre excluyendo abonos pasados a TC)
   const thisMonthTransactions = await db.transaction.findMany({
     where: {
       date: { gte: startMonth, lte: endMonth },
@@ -56,87 +85,84 @@ export default async function AnalistaPage() {
     .filter(t => t.type === "EXPENSE")
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Considerar ingresos recurrentes PENDING para el mes si no han llegado
   const pendingIncome = await db.transaction.findMany({
-      where: {
-          date: { gte: startMonth, lte: endMonth },
-          status: "PENDING",
-          type: "INCOME"
-      }
+      where: { date: { gte: startMonth, lte: endMonth }, status: "PENDING", type: "INCOME" }
   }).then(txs => txs.reduce((acc, curr) => acc + curr.amount, 0));
 
-  // 4. Cálculos y Ratios Algorítmicos
+  // 4. Analítica Macroeconómica
   const estimatedMonthlyIncome = totalIncome + pendingIncome;
   
-  // Ratio de Endeudamiento Mensual (Debt-to-Income): ¿Qué % del sueldo se va en cuotas?
-  const dtiRatio = estimatedMonthlyIncome > 0 ? (monthlyDebtPayments / estimatedMonthlyIncome) * 100 : 0;
-  
-  // Nivel de Liquidez Rápida: ¿Los ahorros alcanzan para cubrir los gastos fijos + deudas del mes?
-  // Aproximamos gastos mensuales totales (incluyendo cuotas) como:
-  const estimatedMonthlyBurn = totalExpenses + monthlyDebtPayments; // Simplificado
-  const liquidityMonths = estimatedMonthlyBurn > 0 ? (liquidAssets / estimatedMonthlyBurn) : 0;
-  
-  // Patrimonio Neto
-  const netWorth = liquidAssets - totalLiabilities;
+  // Flujo Libre Limpio: Ingresos - (Gastos Fijos/Variables + Cuotas Préstamos Regulares)
+  // Este es el "Arma" disponible para abatir la Tarjeta de Crédito.
+  const estimatedMonthlyBurn = totalExpenses + monthlyLoanDebtPayments;
+  const freeCashFlow = estimatedMonthlyIncome - estimatedMonthlyBurn;
 
-  // 5. Diagnóstico Experto (Reglas Financieras Basadas en IA/Algoritmo)
+  // Cupo Hobbies (5% de los ingresos, como presupuesto de salud mental)
+  const hobbiesQuota = estimatedMonthlyIncome * 0.05;
+
+  // 5. Diagnóstico Experto Macro
   let healthScore = 100;
-  let riskLevel = "Bajo";
+  let riskLevel = "Moderado";
   const advices = [];
 
-  // Reglas DTI (Debt To Income)
-  if (dtiRatio > 40) {
-      healthScore -= 30;
-      riskLevel = "Crítico";
+  // Regla 1: Foco en la asfixia por tarjetas (Deuda Tóxica)
+  if (ccTotalDebt > 0) {
+      healthScore -= 40; // Castigo inmenso por tarjeta viva
+      riskLevel = "Alto";
       advices.push({
           type: "danger",
-          title: "Sobreendeudamiento Detectado",
-          message: `Estás comprometiendo el ${dtiRatio.toFixed(1)}% de tus ingresos mensuales solo en pagos de cuotas. Necesitas aplicar el método Bola de Nieve urgentemente para liberar flujo de caja o consolidar deudas.`
-      });
-  } else if (dtiRatio > 25) {
-      healthScore -= 15;
-      riskLevel = "Moderado";
-      advices.push({
-          type: "warning",
-          title: "Carga de Deuda Moderada",
-          message: `Tus cuotas consumen el ${dtiRatio.toFixed(1)}% de tu ingreso. Intenta no adquirir nuevas obligaciones y enfócate en pre-pagar la deuda más pequeña.`
-      });
-  } else if (dtiRatio > 0) {
-      advices.push({
-          type: "success",
-          title: "Buen Control de Deuda",
-          message: `El ${dtiRatio.toFixed(1)}% de tus ingresos se va en deudas. Es un nivel muy sano según estándares financieros (< 30%).`
+          title: "Prioridad Absoluta: Deuda de Tarjeta (Tóxica)",
+          message: `Mantienes ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(ccTotalDebt)} vivos en Tarjetas de Crédito. Al poseer intereses de usura, son tu blanco ineludible. ` + 
+            (freeCashFlow > 0 ? `Usa tu Flujo Libre de ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(freeCashFlow)} este mes íntegramente para abatirlas.` : `¡CUIDADO! No tienes flujo libre para pagarlas tras cubrir tus préstamos fijos normales.`)
       });
   }
 
-  // Reglas Liquidez (Fondo de Emergencia)
-  if (liquidityMonths < 1 && liquidAssets > 0) {
-      healthScore -= 20;
-      if (riskLevel !== "Crítico") riskLevel = "Alto";
+  // Regla 2: Estrategia Avalancha 
+  if (highestInterestDebt && (highestInterestDebt as any).remaining > 0) {
       advices.push({
           type: "warning",
-          title: "Fondo de Emergencia Insuficiente",
-          message: `Tus ahorros líquidos (${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(liquidAssets)}) no alcanzan para cubrir 1 mes de gastos sin ingresos (Burn rate est. de ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(estimatedMonthlyBurn)}/mes). Prioriza crear un cojín de ahorros.`
+          title: "Estrategia de Intereses (Avalancha)",
+          message: `Dejando de lado las tarjetas (si ya las liquidaste), matemáticamente tu deuda más costosa es "${highestInterestDebt.name}" a una destructiva tasa del ${highestInterestRate}%. Acelera abonos de capital allí después.`
       });
-  } else if (liquidityMonths === 0) {
-       healthScore -= 40;
+  }
+
+  // Regla 3: Oxígeno de Reserva
+  if (liquidAssets < estimatedMonthlyBurn && liquidAssets > 0) {
+      healthScore -= 10;
+      advices.push({
+          type: "warning",
+          title: "Falta Respaldo Anti-Hack (Fondo de Emergencia)",
+          message: `Tus ahorros ($${liquidAssets.toLocaleString()}) no sobreviven ni 1 mes de gastos duros ($${estimatedMonthlyBurn.toLocaleString()}). En cuanto aniquiles las tarjetas, dirige tu flujo a engordar el cerdito de urgencias.`
+      });
+  } else if (liquidAssets <= 0 && ccTotalDebt > 0) {
+       healthScore -= 30;
        riskLevel = "Crítico";
        advices.push({
           type: "danger",
-          title: "Peligro de Iliquidez",
-          message: `Tus cuentas rastreadas muestran un saldo consolidado de 0 o negativo. Estás operando con flujo de caja diario. Reducir gastos hormiga es vital en este ciclo.`
+          title: "Riesgo de Espiral de Deuda",
+          message: `No tienes liquidez en efectivo, pero sí deudas costosas vivas. Estás financiando un estilo de vida que se retroalimenta del crédito. Corta el uso del plástico inmediatamente.`
       });
-  } else if (liquidityMonths >= 3) {
-      healthScore += 10;
+  } else if (ccTotalDebt === 0 && liquidAssets > estimatedMonthlyBurn) {
+      healthScore = 100;
+      riskLevel = "Excelente";
       advices.push({
           type: "success",
-          title: "Excelente Respaldo Financiero",
-          message: `Tienes liquidez equivalente a ${liquidityMonths.toFixed(1)} meses de supervivencia. Tu fondo de emergencia está sólido.`
+          title: "Finanzas Masterizadas",
+          message: `Cero tarjetas rotando y ahorros líquidos por encima del peligro mensual. Eres libre para invertir donde decidas.`
       });
   }
 
   // Formateador
   const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+  // Regla Especial: Presupuesto de Salud Mental
+  if (estimatedMonthlyIncome > 0) {
+      advices.push({
+          type: "success",
+          title: "Protección de Salud Mental 🧠",
+          message: `Pagar deudas es duro, pero el burnout es peor. Tienes un "Cupo de Hobbies" recomendado del 5% de tus ingresos (${fmt.format(hobbiesQuota)}). Úsalo mensualmente ESTRICTAMENTE en cosas que te den felicidad genuina (salidas, TCG, videojuegos) sin remordimientos. Ignorar la diversión genera recaídas financieras.`
+      });
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12">
@@ -145,7 +171,7 @@ export default async function AnalistaPage() {
         <p className="text-muted-foreground">Diagnóstico algorítmico de tu situación económica en tiempo real.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         
         <Card className={`border-${healthScore >= 80 ? 'emerald' : healthScore >= 50 ? 'warning' : 'destructive'}/50 bg-background/50`}>
           <CardHeader className="pb-2">
@@ -162,14 +188,16 @@ export default async function AnalistaPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="font-semibold uppercase text-xs">Patrimonio Neto Est.</CardDescription>
-            <CardTitle className={`text-2xl ${netWorth < 0 ? 'text-destructive' : 'text-emerald-500'}`}>
-              {fmt.format(netWorth)}
+            <CardDescription className="font-semibold uppercase text-xs flex items-center gap-1">
+               <Flame className="w-3 h-3 text-destructive"/> Deuda Tóxica (TC)
+            </CardDescription>
+            <CardTitle className={`text-2xl ${ccTotalDebt > 0 ? 'text-destructive' : 'text-emerald-500'}`}>
+              {fmt.format(ccTotalDebt)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground leading-snug">
-              Tus activos ({fmt.format(liquidAssets)}) menos tus pasivos y obligaciones calculadas ({fmt.format(totalLiabilities)}).
+               Tus deudas en Tarjetas de Crédito frente a {fmt.format(loanTotalDebt)} en obligaciones estables.
             </p>
           </CardContent>
         </Card>
@@ -177,31 +205,46 @@ export default async function AnalistaPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="font-semibold uppercase text-xs flex items-center gap-1">
-               <Wallet className="w-3 h-3"/> Flujo Libre Restante (Mes)
+               <Target className="w-3 h-3 text-primary"/> Flujo Libre (Armería)
             </CardDescription>
             <CardTitle className="text-2xl text-primary">
-              {fmt.format(estimatedMonthlyIncome - estimatedMonthlyBurn)}
+              {fmt.format(freeCashFlow)}
             </CardTitle>
           </CardHeader>
           <CardContent>
              <p className="text-xs text-muted-foreground leading-snug">
-              Ingresos y saldo vivo frente a obligaciones estimadas de esta mensualidad.
+              Caché excedente tras cubrir gastos y préstamos. Ignorando tus tarjetas para atacarlas con esto.
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-primary/5">
            <CardHeader className="pb-2">
-            <CardDescription className="font-semibold uppercase text-xs text-primary">Diagnóstico Directo</CardDescription>
+            <CardDescription className="font-semibold uppercase text-xs text-primary">Estado de Armas Mínimo</CardDescription>
             <CardTitle className="text-lg text-foreground">
-               {netWorth < 0 ? "Patrimonio en Deuda" : "Acumulación Neta"}
+               {freeCashFlow <= 0 ? "Modo Sobrevivencia" : freeCashFlow > ccTotalDebt ? "Aniquilación Inmediata" : "Asedio Sistemático"}
             </CardTitle>
           </CardHeader>
           <CardContent>
              <p className="text-xs font-medium text-foreground/80 leading-snug">
-               {liquidityMonths >= 1 ? "Tienes oxígeno financiero." : "Flujo al límite."} 
-               {dtiRatio > 40 && " Las deudas están frenando severamente tus finanzas."}
+               {freeCashFlow > 0 ? "Tienes liquidez para destinar contra las deudas críticas." : "No hay oxígeno. Estás usando deuda para subsistir deudas."} 
              </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-indigo-500/50 bg-indigo-500/5 dark:bg-indigo-500/10 dark:border-indigo-400/30">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-semibold uppercase text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+               Cupo Hobbies 🎮
+            </CardDescription>
+            <CardTitle className="text-2xl text-indigo-700 dark:text-indigo-300">
+              {fmt.format(hobbiesQuota)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground leading-snug">
+               Espacio seguro para tu salud mental (5% de ingresos). ¡Libre de culpa!
+            </p>
           </CardContent>
         </Card>
       </div>
